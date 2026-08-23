@@ -135,6 +135,6 @@ app.get("/api/candidates/:type", async (req, res) => {
   res.json({ candidates: db[type].slice().sort((a,b) => (b.score || 0) - (a.score || 0)).slice(0, 50) });
 });
 
-app.get("*", (req, res) => res.sendFile(path.join(ROOT, "public", "index.html")));
+app.get("/{*splat}", (req, res) => res.sendFile(path.join(ROOT, "public", "index.html")));
 
 app.listen(PORT, "0.0.0.0", () => console.log(`CTC AI listening on ${PORT}`));
