@@ -14,31 +14,37 @@
   const status=document.getElementById('ai-status');
   const button=document.getElementById('refresh');
   const card=document.getElementById('card');
-  if(!status||!button)return;
+  if(!status||!button||!card)return;
+  function showResearchState(title,message){card.innerHTML=`<div class="body"><div class="research-note"><b>${title}</b><br>${message}</div></div>`}
   async function liveResearch(){
     button.disabled=true;
     button.textContent='Researching…';
     status.textContent='● AI research running';
-    card.innerHTML='<div class="body"><div class="research-note"><b>Researching real Perth candidates…</b><br>CTC AI is searching public sources and checking the results. This can take a little while.</div></div>';
+    showResearchState('Researching real Perth candidates…','CTC AI is searching public sources and checking the results. Keep this page open while the backend works.');
     try{
-      const response=await fetch('/api/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'tilers',location:'Perth, Western Australia',limit:10})});
-      const data=await response.json();
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),140000);
+      let response;
+      try{
+        response=await fetch('/api/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'tilers',location:'Perth, Western Australia',limit:10}),signal:controller.signal});
+      }finally{clearTimeout(timer)}
+      let data={};
+      try{data=await response.json()}catch{}
       if(!response.ok)throw new Error(data.error||`Research failed (${response.status})`);
       if(!Array.isArray(data.candidates)||!data.candidates.length)throw new Error('Research completed but returned no candidates.');
       status.textContent='● Live AI research connected';
       button.textContent='✓ Research complete';
-      card.innerHTML='<div class="body"><div class="research-note"><b>Live research completed.</b><br>Reload the page to display the newly researched candidates.</div></div>';
+      showResearchState('Live research completed.',`${data.candidates.length} real candidates were found. Reload the page to load the new results.`);
     }catch(error){
       status.textContent='● AI research error';
       button.textContent='Research failed';
-      card.innerHTML=`<div class="body"><div class="research-note"><b>Live research failed.</b><br>${error.message||'Unknown error'}</div></div>`;
+      showResearchState(error.name==='AbortError'?'Live research timed out.':'Live research could not finish.',error.name==='AbortError'?'The backend did not respond within 140 seconds. Check the Render logs and backend research speed.':(error.message||'Unknown error'));
     }finally{
       button.disabled=false;
       setTimeout(()=>button.textContent='↻ Refresh research',2500);
     }
   }
-  button.addEventListener('click',liveResearch);
-  setTimeout(()=>{if(status.textContent.includes('Ready'))liveResearch()},300);
+  window.ctcLiveResearch=liveResearch;
 })();
 </script>
 <script>
